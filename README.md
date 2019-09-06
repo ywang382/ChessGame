@@ -3,6 +3,7 @@
 
 # Rules
 King of the Hill Chess: Same as classic chess but player can win a game, beside checkmate, by placing their king in the four middle squares of the chessboard.
+<br />
 Ghost Chess: Same as classic chess but there will be an additional piece (Ghost Piece) randomly controlled by the computer that can block paths of both players and consume pieces of both players. The ghost will not consume the King piece of either player.
 
 # Implementation
