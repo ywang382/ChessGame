@@ -11,36 +11,19 @@
  * type of move player is making
  */
 
-//checks if user attempts to move to the same cell
-bool move_to_same_cell(Position start, Position end){
-  if(start.x == end.x && start.y == end.y){
-    return true;
-  }
-  return false;
-}
-
 //checks if user attempts to move horizontally
 bool move_horizontal(Position start, Position end){
-  if(start.y == end.y){
-    return true;
-  }
-  return false;
+  return (start.y == end.y);
 }
-
+  
 //checks if user attempts to move vertically
 bool move_vertical(Position start, Position end){
-  if(start.x == end.x){
-    return true;
-  }
-  return false;
+  return (start.x == end.x);
 }
 
 //checks if user attempts to move diagonally
 bool move_diagonal(Position start, Position end){
-  if(abs(((int)start.x - (int)end.x)/((int)start.y - (int) end.y)) == 1){
-    return true;
-  }
-  return false;
+  return (abs((int)start.x - (int)end.x)== abs((int)start.y - (int) end.y));
 }
 
 /**
@@ -52,7 +35,7 @@ void horizontal_trajectory(Position start, Position end,std::vector<Position>& t
   //determine move right or left
   int dx = (start.x < end.x)? 1 : -1;
 
-  for(unsigned int i = start.x + dx; i != end.x; i += dx){
+  for(unsigned int i = start.x; i != end.x; i += dx){
     trajectory.push_back(Position(i, start.y));
   }
 }
@@ -62,7 +45,7 @@ void vertical_trajectory(Position start, Position end, std::vector<Position>& tr
   //determine move up or down
   int dy = (start.y < end.y)? 1 : -1;
 
-  for(unsigned int i = start.y + dy; i != end.y; i += dy){
+  for(unsigned int i = start.y; i != end.y; i += dy){
     trajectory.push_back(Position(start.x, i));
   }
 }
@@ -73,8 +56,8 @@ void diagonal_trajectory(Position start, Position end, std::vector<Position>& tr
   int dx = (start.x < end.x)? 1 : -1;
   int dy = (start.y < end.y)? 1 : -1;
 
-  unsigned int x = start.x + dx;
-  unsigned int y = start.y + dy;
+  unsigned int x = start.x;
+  unsigned int y = start.y;
   while(x != end.x && y != end.y){
     trajectory.push_back(Position(x, y));
     x += dx;
@@ -82,11 +65,14 @@ void diagonal_trajectory(Position start, Position end, std::vector<Position>& tr
   }
 }
 
+/*
+ * Implementation of valid_move_shape functions for specific chess pieces
+ * Return the status of the move, successful or illegal move
+ * These are called by the valid_move function in game
+ */
+
 int Rook::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
-  if(move_to_same_cell(start, end)){
-    return MOVE_ERROR_ILLEGAL;
-  }
-  else if(move_horizontal(start, end)){
+  if(move_horizontal(start, end)){
     horizontal_trajectory(start, end, trajectory);
     return SUCCESS;
   }
@@ -100,37 +86,19 @@ int Rook::valid_move_shape(Position start, Position end, std::vector<Position>& 
 }
 
 int Knight::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
-  //trajectory.push_back(start);
-  trajectory.push_back(end);
-  if(move_to_same_cell(start, end)){
-    return MOVE_ERROR_ILLEGAL;
+  int dx = abs((int)start.x - (int)end.x);
+  int dy = abs((int)start.y - (int)end.y);
+  if((dx == 2 && dy == 1) || (dx == 1 && dy == 2)){ //knight can only move in L shape
+    trajectory.push_back(end);
+    return SUCCESS;
   }
-  else{
-    static const int offsets[][2] = {
-      {1, -2},
-      {2, -1},
-      {2, 1},
-      {1, 2},
-      {-1, 2},
-      {-2, -1},
-      {-1, -2}
-    };
-    bool flag = false;
-    for(int i = 0; i < 8; i++){
-      unsigned int new_x = start.x + offsets[i][0];
-      unsigned int new_y = start.y + offsets[i][1];
-      if(end.x == new_x && end.y == new_y){flag = true;}
-    }
-    return (flag == true)? SUCCESS:MOVE_ERROR_ILLEGAL;
-  }
+  return MOVE_ERROR_ILLEGAL;
 }
 
 
+
 int Bishop::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
-  if(move_to_same_cell(start,end)){
-    return MOVE_ERROR_ILLEGAL;
-  }
-  else if(move_diagonal(start, end)){
+  if(move_diagonal(start, end)){
     diagonal_trajectory(start, end, trajectory);
     return SUCCESS;
   }
@@ -140,10 +108,7 @@ int Bishop::valid_move_shape(Position start, Position end, std::vector<Position>
 }
 
 int Queen::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
-  if(move_to_same_cell(start, end)){
-    return MOVE_ERROR_ILLEGAL;
-  }
-  else if(move_horizontal(start, end)){
+  if(move_horizontal(start, end)){
     horizontal_trajectory(start, end, trajectory);
     return SUCCESS;
   }
@@ -161,10 +126,7 @@ int Queen::valid_move_shape(Position start, Position end, std::vector<Position>&
 }
 
 int King::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
-  if(move_to_same_cell(start, end)){
-    return MOVE_ERROR_ILLEGAL;
-  }
-  else if(abs((int)start.x - (int)end.x) > 1 || abs((int)start.y - (int)end.y) > 1){
+  if(abs((int)start.x - (int)end.x) > 1 || abs((int)start.y - (int)end.y) > 1){
     return MOVE_ERROR_ILLEGAL;
   }
   else if(move_horizontal(start, end)){
@@ -184,15 +146,18 @@ int King::valid_move_shape(Position start, Position end, std::vector<Position>& 
   }
 }
 
+// Pawn's move is special because it can move 1 or 2 steps from starting position and it only captures diagonally
+// This function returns true if the move shape is valid for pawn: it can be diagonal, 1 step forward,
+// or 2 steps forward only if the pawn is at its starting position.
+// To distinguish the actual move shape of the pawn in the calling function, the size of the trajectory will be different for each move shape.
 int Pawn::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const{
   int dx = (int)end.x - (int)start.x;
   int dy;
-  //gives positive dy value for a correct player's move
-  if(_owner == WHITE){
+  //gives a positive dy value for a correct player's move
+  if(_owner == WHITE)
     dy = (int)end.y - (int)start.y;
-  }else{
+  else
     dy = (int)start.y - (int)end.y;
-  }
  
   //2 steps forward
   if(dy == 2 && dx == 0){
@@ -217,6 +182,16 @@ int Pawn::valid_move_shape(Position start, Position end, std::vector<Position>& 
     trajectory.clear();
     //trajectory will have size 0 for diagonal step
     return SUCCESS;
-  } 
-  return MOVE_ERROR_ILLEGAL;
+  }
+  //the size of the trajectory indicates which movement the pawn takes
+  
+  return MOVE_ERROR_ILLEGAL; //if everything fails
 }
+
+int Ghost::valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const {
+  //no need to track the ghost's movement
+  trajectory.push_back(start);
+  trajectory.push_back(end);
+  return SUCCESS;
+}
+

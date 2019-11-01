@@ -1,8 +1,11 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
+#include <cctype>
 #include "Enumerations.h"
 #include "Piece.h"
 #include "Terminal.h"
@@ -10,8 +13,6 @@
 
 // Game status code enumeration. Note that any value > 0
 // indicates success, and any value < 0 indicates failure.
-// You might want to use these as return codes from methods
-// such as make_move().
 enum status {
   LOAD_FAILURE = -10,
   SAVE_FAILURE,
@@ -26,8 +27,9 @@ enum status {
   SUCCESS = 1,
   MOVE_CHECK,
   MOVE_CAPTURE,
-  MOVE_CHECKMATE,
-  MOVE_STALEMATE,
+  GHOST_CAPTURE,
+  CHECKMATE,
+  STALEMATE,
   GAME_WIN,
   GAME_OVER
 };
@@ -69,6 +71,11 @@ public:
         return static_cast<Player>(!(_turn % 2)); 
     }
 
+    // Return the opponent of the player whose turn it is
+    Player opponent() const{
+      return static_cast<Player>(_turn % 2);
+    }
+
     // Return the current turn number (turn sequence number)
     int turn() const {
         return _turn;
@@ -95,15 +102,27 @@ public:
     void draw_board();
 
     //save current game state to a file
-    void save_game();
+    virtual void save_game() = 0;
+
+    //save piece state, called by save_game()
+    void save_piece_state(std::ofstream& file);
     
-    // Execute the main gameplay loop.
+    //load piece state from file, called by constructor of game objects
+    void load_pieces(std::ifstream& file);
+
+    // Execute the main gameplay loop
     virtual void run() = 0;
+
+    //parse user input and perform move action, overriden for SpookyChess
+    virtual int update_board(std::string input) = 0;
+
+    // Returns the player being checked
+    //virtual bool check(Player p);
 
     // Pure virtual function (i.e. not defined in Game)
     // so always need to override this in subclasses
     // Reports whether the game is over.
-    virtual bool game_over() const = 0;
+    virtual bool game_over() = 0;
 
 protected:
 
@@ -116,6 +135,9 @@ protected:
     // Current game turn sequence number
     int _turn;
 
+    // Whether the board is switched on
+    bool _board_on;
+
     // All the factories registered with this Board
     PieceGenMap _registered_factories;
 
@@ -123,6 +145,19 @@ protected:
     unsigned int index(Position pos) const {
         return pos.y * _width + pos.x;
     }
+
+    // Determine the 2D position from the 1D undex
+    Position pos(int index) const {
+      return Position(index%_width, (index-index%_width)/_width);
+    }
+
+    // Helper function to convert input string to lowercase
+    void lowerCase(std::string& s){
+      for(size_t i = 0; i < s.length(); i++){
+	s[i] = tolower(s[i]);
+      }
+    }
+
 
     // Functionality for creating a new piece (called by init_piece)
     Piece* new_piece(int piece_type, Player owner);

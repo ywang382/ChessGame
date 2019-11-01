@@ -8,7 +8,6 @@ enum Player {
     NO_ONE = 2
 };
 
-
 // A struct to represent a position on the Game board.
 struct Position {
     unsigned int x, y;

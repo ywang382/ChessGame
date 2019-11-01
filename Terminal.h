@@ -21,7 +21,8 @@ public:
         MAGENTA,
         CYAN,
         WHITE,
-        DEFAULT_COLOR = 9
+        DEFAULT_COLOR = 9,
+	GREY = 60
     };
 
     // Set the foreground color for the next piece of text, keeping the

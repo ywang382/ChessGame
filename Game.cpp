@@ -3,11 +3,14 @@
 #include <cctype>
 #include <string>
 #include <fstream>
+#include <vector>
 
 #include "Game.h"
 #include "Prompts.h"
 #include "Piece.h"
 
+using std::vector;
+using std::ifstream;
 using std::ofstream;
 using std::string;
 using std::cin;
@@ -20,16 +23,11 @@ Game::~Game() {
     for (size_t i = 0; i < _registered_factories.size(); i++) {
       delete _registered_factories[i];
     }
-    //Delete the individual piece objects
+    //Delete the individual piece pointers
     for(unsigned int i = 0; i < _pieces.size(); i++){
       if(_pieces[i] != nullptr)
 	delete _pieces[i];
     }
-    
-    // Delete any other dynamically-allocated resources here
-    
-
-
 }
 
 // Create a Piece on the board using the appropriate factory.
@@ -43,7 +41,6 @@ bool Game::init_piece(int piece_type, Player owner, Position pos) {
         Prompts::out_of_bounds();
         return false;
     }
-
     // Fail if the position is occupied
     if (get_piece(pos)) {
         Prompts::blocked();
@@ -69,29 +66,30 @@ Piece* Game::get_piece(Position pos) const {
 void print_piece(Piece* piece){
   // get piece info
   if(piece == nullptr){
-    cout << "    ";
+    cout << "   ";
     return;
-  }  
+  }
+  // use unicode to print each piece type
   if(piece->owner() == WHITE){
-    Terminal::color_fg(1, Terminal::BLACK);
+    Terminal::color_fg(1, Terminal::WHITE);
     switch (piece->piece_type()){
     case PAWN_ENUM:
-      cout << " \u2659  ";
+      cout << " \u2659 ";
       break;
     case KNIGHT_ENUM:
-      cout << " \u2658  ";
+      cout << " \u2658 ";
       break;
     case BISHOP_ENUM:
-      cout << " \u2657  ";
+      cout << " \u2657 ";
       break;
     case ROOK_ENUM:
-      cout << " \u2656  ";
+      cout << " \u2656 ";
       break;
     case QUEEN_ENUM:
-      cout << " \u2655  ";
+      cout << " \u2655 ";
       break;
     case KING_ENUM:
-      cout << " \u2654  ";
+      cout << " \u2654 ";
       break;
     }
     return;
@@ -100,73 +98,85 @@ void print_piece(Piece* piece){
     Terminal::color_fg(1, Terminal::YELLOW);
     switch (piece->piece_type()){
     case PAWN_ENUM:
-      cout << " \u265F  ";
+      cout << " \u265F ";
       break;
     case KNIGHT_ENUM:
-      cout << " \u265E  ";
+      cout << " \u265E ";
       break;
     case BISHOP_ENUM:
-      cout << " \u265D  ";
+      cout << " \u265D ";
       break;
     case ROOK_ENUM:
-      cout << " \u265C  ";
+      cout << " \u265C ";
       break;
     case QUEEN_ENUM:
-      cout << " \u265B  ";
+      cout << " \u265B ";
       break;
     case KING_ENUM:
-      cout << " \u265A  ";
+      cout << " \u265A ";
       break;
     }
+  }
+  if(piece->owner() == NO_ONE){ //Ghost piece
+    Terminal::color_fg(1, Terminal::RED);
+    cout << " \u2620 ";
   }
 }
 
 
-// Draw gameboard
+// Draw gameboard with colors
 void Game::draw_board(){
-  cout << endl << "==================================" << endl;
+  //Only draws if board is toggled on
+  if(!_board_on)
+    return;
+  
+  cout << "============================" << endl; 
+  //print horizontal coordiante
+  Terminal::color_bg(Terminal::GREY);
+  cout << "   ";
+  for(unsigned int i = 0; i < _width; i++){
+    char c = 'a'+i;
+    cout << c << "  ";
+  }
+  cout << " ";
+  Terminal::set_default();
+  cout << endl;
+  
   for(unsigned int i = _height; i > 0 ; i--){
+    //print vertical coordinate
+    Terminal::color_bg(Terminal::GREY);
     cout << i << " ";
+    Terminal::set_default();
     for(unsigned int j = 0; j < _width; j++){
+      //print pieces in checkered colors
       if((i+j)%2 == 0){
-	Terminal::color_bg(Terminal::BLACK);
+	Terminal::color_bg(Terminal::BLUE);
       }else{
-	Terminal::color_bg(Terminal::CYAN);
+	Terminal::color_bg(Terminal::BLACK);
       }
       print_piece(_pieces[index(Position(j, i-1))]);
       Terminal::set_default();
     }
+    //print vertical coordinate
+    Terminal::color_bg(Terminal::GREY);
+    cout << " " << i;
+    Terminal::set_default();
     cout << endl;
   }
-  Terminal::set_default();
+  //print horizontal coordinate
+  Terminal::color_bg(Terminal::GREY);
   cout << "   ";
   for(unsigned int i = 0; i < _width; i++){
-    char a = 'a';
-    char b = a+i;
-    cout <<  b << "   ";
+    char c = 'a'+i;
+    cout << c << "  ";
   }
-  cout << endl << "==================================" << endl;
+  cout << " ";
+  Terminal::set_default();
+  cout << endl << "============================" << endl;
 }
 
-
-// Perform a move from the start Position to the end Position
-// The method returns an integer status where a value
-// >= 0 indicates SUCCESS, and a < 0 indicates failure
-
-//Save current state of game to a file
-void Game::save_game(){
-  //Ask user for filename to save
-  Prompts::save_game();
-  string name; //for storing saving filename
-  cin >> name;
-  //filestream for writing to file
-  ofstream file(name);
-  if(!file.is_open()){ //print error message if cannot open file
-    Prompts::save_failure();
-    return;
-  }
-  file << "chess" << endl; //this is gonna be changed in the future
-  file << _turn << endl;
+//save current vector of pieces, called by save_game() of each type of game 
+void Game::save_piece_state(ofstream& file){
   for(unsigned int i = 0; i < _pieces.size(); i++){
     if(_pieces[i] != nullptr){
       file << _pieces[i]->owner() << " ";
@@ -176,7 +186,24 @@ void Game::save_game(){
       file << a << y << " " << _pieces[i]->piece_type() << endl;
     }
   }
+}
+
+//load from file to initialize board, called by constructor of each type of game
+void Game::load_pieces(ifstream& file){
+  int p; //used to store owner of piece (White or Black)
+  while(file >> p){ //continue reading in line
+    int y, piece; //y position on board, piece type
+    char x; //x position on board
+    file >> x;
+    file >> y;
+    file >> piece;
+    //cast to Player enum
+    Player player = static_cast<Player>(p);
+    //create piece from info read from file
+    init_piece(piece, player, Position((int)(x-'a'), y-1));
+  }
   file.close();
+  return;
 }
 
 
@@ -184,9 +211,7 @@ void Game::save_game(){
 //`piece_type' into a Piece, and use it to create the Piece.
 // Returns nullptr if factory not found.
 Piece* Game::new_piece(int piece_type, Player owner) {
-
     PieceGenMap::iterator it = _registered_factories.find(piece_type);
-
     if (it == _registered_factories.end()) { // not found
         std::cout << "Piece type " << piece_type << " has no generator\n";
         return nullptr;

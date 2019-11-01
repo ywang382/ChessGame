@@ -21,6 +21,7 @@ public:
             return "Black";
     }
 
+    //remind user of valid input format
     static void game_choice() {
         std::cout << "Which game would you like to play?\n"
             << "1. Standard Chess\n"
@@ -46,6 +47,15 @@ public:
         std::cout << "Failed to load game\n";
     }
 
+    // Loaded file of wrong game type
+    static void wrong_game() {
+      std::cout << "The loaded game doesn't match the selected game type\n";
+    }
+
+    static void save_success(){
+      std::cout << "Game saved successfully\n";
+    }
+
     static void save_failure() {
         std::cout << "Failed to save game\n";
     }
@@ -55,7 +65,9 @@ public:
     }
 
     static void check(Player pl) {
-        std::cout << get_player_name(pl) << " checks!" << std::endl;
+      if(pl == NO_ONE)
+	return;
+      std::cout << get_player_name(pl) << " checks!" << std::endl;
     }
 
     static void capture(Player pl) {

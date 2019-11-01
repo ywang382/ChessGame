@@ -96,4 +96,19 @@ public:
 };
 
 
+class Ghost : public Piece {
+  
+protected:
+    friend PieceFactory<Ghost>;
+    Ghost(Player owner, int piece_type) : Piece(owner, piece_type) {}
+
+public:
+    // Returns an integer representing move shape validity
+    // where a value >= 0 means valid, < 0 means invalid.
+    // also populates a vector of Positions with the trajectory
+    // followed by the Piece from start to end
+    virtual int valid_move_shape(Position start, Position end, std::vector<Position>& trajectory) const override;
+};
+
+
 #endif // CHESS_PIECE_H
